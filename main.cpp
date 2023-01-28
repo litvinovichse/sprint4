@@ -158,42 +158,47 @@ public:
         return documents_.size();
     }
 
-    optional<tuple<vector<string>, DocumentStatus>> MatchDocument(const string& raw_query, int document_id) const{
+    tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query, int document_id) const{
 
-        if (!ParseQuery(raw_query)){
-            return nullopt;
+//        if (!ParseQuery(raw_query)){
+//            return nullopt;
+//        }
+        try {
+            auto query = ParseQuery(raw_query);
+            vector<string> matched_words;
+
+            for (const string& word : query.plus_words) {
+
+                if (word_to_document_freqs_.count(word) == 0) {
+                    continue;
+                }
+                if (word_to_document_freqs_.at(word).count(document_id)) {
+                    matched_words.push_back(word);
+                }
+            }
+            for (const string& word : query.minus_words) {
+
+                if (word_to_document_freqs_.count(word) == 0) {
+                    continue;
+                }
+                if (word_to_document_freqs_.at(word).count(document_id)) {
+                    matched_words.clear();
+                    break;
+                }
+            }
+
+
+            return tuple{matched_words, documents_.at(document_id).status};
+
+        }  catch (invalid_argument& e) {
+            cout << e.what() << endl;
         }
-        auto query = ParseQuery(raw_query).value();
-        vector<string> matched_words;
-
-        for (const string& word : query.plus_words) {
-
-            if (word_to_document_freqs_.count(word) == 0) {
-                continue;
-            }
-            if (word_to_document_freqs_.at(word).count(document_id)) {
-                matched_words.push_back(word);
-            }
-        }
-        for (const string& word : query.minus_words) {
-
-            if (word_to_document_freqs_.count(word) == 0) {
-                continue;
-            }
-            if (word_to_document_freqs_.at(word).count(document_id)) {
-                matched_words.clear();
-                break;
-            }
-        }
-
-
-        return tuple{matched_words, documents_.at(document_id).status};
 
     }
 
     int GetDocumentId(int index) const {
         if ((index > idsAdd.size()) || (index < 0)) {
-            return  SearchServer::INVALID_DOCUMENT_ID;
+            throw out_of_range("out of range"s);
         }
         else
             return idsAdd.at(index);
