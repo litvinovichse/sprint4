@@ -84,7 +84,7 @@ public:
         : stop_words_(MakeUniqueNonEmptyStrings(stop_words)) {
         for (const auto& a : stop_words){
             if (!IsValidWord(a)){
-                 throw invalid_argument("construsctor error"s);
+                throw invalid_argument("construsctor error"s);
             }
         }
     }
@@ -123,10 +123,9 @@ public:
 
     template <typename DocumentPredicate>
     vector<Document> FindTopDocuments(const string& raw_query, DocumentPredicate document_predicate) const {
-
-                if (!ParseQuery(raw_query).has_value()){
-                 throw invalid_argument("FTD1"s);
-                }
+        if (!ParseQuery(raw_query).has_value()){
+            throw invalid_argument("error FTD1"s); // если нет значения, вернет error FTD1, там проверка optional стоит.
+        }
         Query query = ParseQuery(raw_query).value();
         auto matched_documents = FindAllDocuments(query, document_predicate);
 
@@ -149,7 +148,7 @@ public:
                         raw_query, [status](int document_id, DocumentStatus document_status, int rating) {
                 return document_status == status;
             })};
-        return temp;
+        return temp; // тут не ставил никаких проверок, ведь все пути ведут в рим (зачеркнуто) все FTD ведут в FTD.
     }
 
     vector<Document> FindTopDocuments(const string& raw_query) const {
@@ -163,9 +162,9 @@ public:
 
     tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query, int document_id) const{
 
-                if (!ParseQuery(raw_query)){
-                    throw invalid_argument("MD error"s);
-                }
+        if (!ParseQuery(raw_query)){
+            throw invalid_argument("MD error"s); // аналогично, если PQ возвращает пустое значение на основе проверок, то возвращает invalid_argument.
+        }
 
         auto query = ParseQuery(raw_query).value();
         vector<string> matched_words;
@@ -189,21 +188,15 @@ public:
                 break;
             }
         }
-
-
         return tuple{matched_words, documents_.at(document_id).status};
-
-
-
     }
 
     int GetDocumentId(int index) const {
         if ((index > idsAdd.size()) || (index < 0)) {
-            throw out_of_range("out of range"s);
+            throw out_of_range("out of range"s); // возврат ошибки
         }
         else
             return idsAdd.at(index);
-
     }
 private:
     struct DocumentData {
@@ -259,8 +252,6 @@ private:
             if (text[1] == '-') not_error = false;
             is_minus = true;
             text = text.substr(1);
-
-
         }
         return {text, is_minus, IsStopWord(text), not_error};
     }
@@ -272,28 +263,23 @@ private:
 
     optional <Query> ParseQuery(const string& text) const {
         Query query;
-        try {
-            for (const string& word : SplitIntoWords(text)) {
-                if (!IsValidWord(word)){
-                    throw invalid_argument("query has not valid sybols");
-                }
-                const QueryWord query_word = ParseQueryWord(word);
-                if (!query_word.not_error){
-                    throw invalid_argument("error in query");
-                }
-                if (!query_word.is_stop) {
-                    if (query_word.is_minus) {
-                        query.minus_words.insert(query_word.data);
-                    } else {
-                        query.plus_words.insert(query_word.data);
-                    }
+        for (const string& word : SplitIntoWords(text)) {
+            if (!IsValidWord(word)){
+                return nullopt;
+            }
+            const QueryWord query_word = ParseQueryWord(word);
+            if (!query_word.not_error){
+                return nullopt;
+            }
+            if (!query_word.is_stop) {
+                if (query_word.is_minus) {
+                    query.minus_words.insert(query_word.data);
+                } else {
+                    query.plus_words.insert(query_word.data);
                 }
             }
-        } catch(invalid_argument& e ) {
-            cout << e.what() << endl;
         }
         return query;
-
     }
 
     // Existence required
@@ -357,10 +343,8 @@ int main() {
     try {
         SearchServer search_server("и в на"s);
         search_server.AddDocument(1,"кот в мешке",DocumentStatus::ACTUAL,{2, 3, 4});
-        search_server.FindTopDocuments("--кот"s,DocumentStatus::ACTUAL);
+        search_server.FindTopDocuments("-кот"s,DocumentStatus::ACTUAL);
     }  catch (invalid_argument& e) {
         cout << e.what() << endl;
     }
-
-
 }
