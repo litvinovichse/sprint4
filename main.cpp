@@ -119,26 +119,21 @@ public:
         //        if (!ParseQuery(raw_query).has_value()){
         //            return nullopt;
         //        }
+        Query query = ParseQuery(raw_query);
+        auto matched_documents = FindAllDocuments(query, document_predicate);
 
-        try {
-            Query query = ParseQuery(raw_query);
-            auto matched_documents = FindAllDocuments(query, document_predicate);
-
-            sort(matched_documents.begin(), matched_documents.end(),
-                 [](const Document& lhs, const Document& rhs) {
-                if (abs(lhs.relevance - rhs.relevance) < 1e-6) {
-                    return lhs.rating > rhs.rating;
-                } else {
-                    return lhs.relevance > rhs.relevance;
-                }
-            });
-            if (matched_documents.size() > MAX_RESULT_DOCUMENT_COUNT) {
-                matched_documents.resize(MAX_RESULT_DOCUMENT_COUNT);
+        sort(matched_documents.begin(), matched_documents.end(),
+             [](const Document& lhs, const Document& rhs) {
+            if (abs(lhs.relevance - rhs.relevance) < 1e-6) {
+                return lhs.rating > rhs.rating;
+            } else {
+                return lhs.relevance > rhs.relevance;
             }
-            return matched_documents;
-        }  catch (invalid_argument& e) {
-            cout << e.what() << endl;
+        });
+        if (matched_documents.size() > MAX_RESULT_DOCUMENT_COUNT) {
+            matched_documents.resize(MAX_RESULT_DOCUMENT_COUNT);
         }
+        return matched_documents;
     }
 
     vector<Document> FindTopDocuments(const string& raw_query, DocumentStatus status) const{
@@ -151,7 +146,7 @@ public:
 
     vector<Document> FindTopDocuments(const string& raw_query) const {
 
-            return FindTopDocuments(raw_query, DocumentStatus::ACTUAL);
+        return FindTopDocuments(raw_query, DocumentStatus::ACTUAL);
     }
 
     int GetDocumentCount() const {
@@ -160,39 +155,37 @@ public:
 
     tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query, int document_id) const{
 
-//        if (!ParseQuery(raw_query)){
-//            return nullopt;
-//        }
-        try {
-            auto query = ParseQuery(raw_query);
-            vector<string> matched_words;
+        //        if (!ParseQuery(raw_query)){
+        //            return nullopt;
+        //        }
 
-            for (const string& word : query.plus_words) {
+        auto query = ParseQuery(raw_query);
+        vector<string> matched_words;
 
-                if (word_to_document_freqs_.count(word) == 0) {
-                    continue;
-                }
-                if (word_to_document_freqs_.at(word).count(document_id)) {
-                    matched_words.push_back(word);
-                }
+        for (const string& word : query.plus_words) {
+
+            if (word_to_document_freqs_.count(word) == 0) {
+                continue;
             }
-            for (const string& word : query.minus_words) {
-
-                if (word_to_document_freqs_.count(word) == 0) {
-                    continue;
-                }
-                if (word_to_document_freqs_.at(word).count(document_id)) {
-                    matched_words.clear();
-                    break;
-                }
+            if (word_to_document_freqs_.at(word).count(document_id)) {
+                matched_words.push_back(word);
             }
-
-
-            return tuple{matched_words, documents_.at(document_id).status};
-
-        }  catch (invalid_argument& e) {
-            cout << e.what() << endl;
         }
+        for (const string& word : query.minus_words) {
+
+            if (word_to_document_freqs_.count(word) == 0) {
+                continue;
+            }
+            if (word_to_document_freqs_.at(word).count(document_id)) {
+                matched_words.clear();
+                break;
+            }
+        }
+
+
+        return tuple{matched_words, documents_.at(document_id).status};
+
+
 
     }
 
@@ -271,21 +264,25 @@ private:
 
     Query ParseQuery(const string& text) const {
         Query query;
-        for (const string& word : SplitIntoWords(text)) {
-            if (!IsValidWord(word)){
-                throw invalid_argument("query has not valid sybols");
-            }
-            const QueryWord query_word = ParseQueryWord(word);
-            if (!query_word.not_error){
-                throw invalid_argument("error in query");
-            }
-            if (!query_word.is_stop) {
-                if (query_word.is_minus) {
-                    query.minus_words.insert(query_word.data);
-                } else {
-                    query.plus_words.insert(query_word.data);
+        try {
+            for (const string& word : SplitIntoWords(text)) {
+                if (!IsValidWord(word)){
+                    throw invalid_argument("query has not valid sybols");
+                }
+                const QueryWord query_word = ParseQueryWord(word);
+                if (!query_word.not_error){
+                    throw invalid_argument("error in query");
+                }
+                if (!query_word.is_stop) {
+                    if (query_word.is_minus) {
+                        query.minus_words.insert(query_word.data);
+                    } else {
+                        query.plus_words.insert(query_word.data);
+                    }
                 }
             }
+        } catch(invalid_argument& e ) {
+            cout << e.what() << endl;
         }
         return query;
 
