@@ -114,7 +114,7 @@ public:
     }
 
     template <typename DocumentPredicate>
-    optional<vector<Document>> FindTopDocuments(const string& raw_query, DocumentPredicate document_predicate) const {
+    vector<Document> FindTopDocuments(const string& raw_query, DocumentPredicate document_predicate) const {
 
         //        if (!ParseQuery(raw_query).has_value()){
         //            return nullopt;
@@ -139,28 +139,19 @@ public:
         }  catch (invalid_argument& e) {
             cout << e.what() << endl;
         }
-
-
     }
 
-    optional<vector<Document>> FindTopDocuments(const string& raw_query, DocumentStatus status) const{
+    vector<Document> FindTopDocuments(const string& raw_query, DocumentStatus status) const{
         auto temp {FindTopDocuments(
                         raw_query, [status](int document_id, DocumentStatus document_status, int rating) {
                 return document_status == status;
             })};
-        if (temp.has_value()){
-            auto a = temp.value();
-            return a;
-        } else {
-            return nullopt;
-        }
+        return temp;
     }
 
-    optional<vector<Document>> FindTopDocuments(const string& raw_query) const {
-        if (FindTopDocuments(raw_query, DocumentStatus::ACTUAL).has_value()){
-            return FindTopDocuments(raw_query, DocumentStatus::ACTUAL).value();
-        }
-        return nullopt;
+    vector<Document> FindTopDocuments(const string& raw_query) const {
+
+            return FindTopDocuments(raw_query, DocumentStatus::ACTUAL);
     }
 
     int GetDocumentCount() const {
