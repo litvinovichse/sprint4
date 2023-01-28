@@ -82,12 +82,20 @@ public:
     template <typename StringContainer>
     explicit SearchServer(const StringContainer& stop_words)
         : stop_words_(MakeUniqueNonEmptyStrings(stop_words)) {
+        for (const auto& a : stop_words){
+            if (!IsValidWord(a)){
+                 throw invalid_argument("construsctor error"s);
+            }
+        }
     }
 
     explicit SearchServer(const string& stop_words_text)
         : SearchServer(
               SplitIntoWords(stop_words_text))  // Invoke delegating constructor from string container
     {
+        for (const auto& a : SplitIntoWords(stop_words_text)){
+            if (!IsValidWord(a)) throw invalid_argument("construsctor error"s);
+        }
     }
 
     void AddDocument(int document_id, const string& document, DocumentStatus status,
@@ -116,10 +124,10 @@ public:
     template <typename DocumentPredicate>
     vector<Document> FindTopDocuments(const string& raw_query, DocumentPredicate document_predicate) const {
 
-        //        if (!ParseQuery(raw_query).has_value()){
-        //            return nullopt;
-        //        }
-        Query query = ParseQuery(raw_query);
+                if (!ParseQuery(raw_query).has_value()){
+                 throw invalid_argument("FTD1"s);
+                }
+        Query query = ParseQuery(raw_query).value();
         auto matched_documents = FindAllDocuments(query, document_predicate);
 
         sort(matched_documents.begin(), matched_documents.end(),
@@ -155,11 +163,11 @@ public:
 
     tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query, int document_id) const{
 
-        //        if (!ParseQuery(raw_query)){
-        //            return nullopt;
-        //        }
+                if (!ParseQuery(raw_query)){
+                    throw invalid_argument("MD error"s);
+                }
 
-        auto query = ParseQuery(raw_query);
+        auto query = ParseQuery(raw_query).value();
         vector<string> matched_words;
 
         for (const string& word : query.plus_words) {
@@ -262,7 +270,7 @@ private:
         set<string> minus_words;
     };
 
-    Query ParseQuery(const string& text) const {
+    optional <Query> ParseQuery(const string& text) const {
         Query query;
         try {
             for (const string& word : SplitIntoWords(text)) {
@@ -346,24 +354,13 @@ void PrintDocument(const Document& document) {
          << "rating = "s << document.rating << " }"s << endl;
 }
 int main() {
-    SearchServer search_server("и в на"s);
-    // Явно игнорируем результат метода AddDocument, чтобы избежать предупреждения
-    // о неиспользуемом результате его вызова
-    (void) search_server.AddDocument(1, "пушистый кот пушистый хвост"s, DocumentStatus::ACTUAL, {7, 2, 7});
-    if (!search_server.AddDocument(1, "пушистый пёс и модный ошейник"s, DocumentStatus::ACTUAL, {1, 2})) {
-        cout << "Документ не был добавлен, так как его id совпадает с уже имеющимся"s << endl;
+    try {
+        SearchServer search_server("и в на"s);
+        search_server.AddDocument(1,"кот в мешке",DocumentStatus::ACTUAL,{2, 3, 4});
+        search_server.FindTopDocuments("--кот"s,DocumentStatus::ACTUAL);
+    }  catch (invalid_argument& e) {
+        cout << e.what() << endl;
     }
-    if (!search_server.AddDocument(-1, "пушистый пёс и модный ошейник"s, DocumentStatus::ACTUAL, {1, 2})) {
-        cout << "Документ не был добавлен, так как его id отрицательный"s << endl;
-    }
-    if (!search_server.AddDocument(3, "большой пёс скво\x12рец"s, DocumentStatus::ACTUAL, {1, 3, 2})) {
-        cout << "Документ не был добавлен, так как содержит спецсимволы"s << endl;
-    }
-    if (const auto documents = search_server.FindTopDocuments("--пушистый"s)) {
-        for (const Document& document : *documents) {
-            PrintDocument(document);
-        }
-    } else {
-        cout << "Ошибка в поисковом запросе"s << endl;
-    }
+
+
 }
