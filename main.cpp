@@ -90,19 +90,19 @@ public:
     {
     }
 
-    [[nodiscard]] bool AddDocument(int document_id, const string& document, DocumentStatus status,
+    void AddDocument(int document_id, const string& document, DocumentStatus status,
                                    const vector<int>& ratings) {
         if(document_id < 0){
-            return false;
+            throw invalid_argument("only positive & 0");
         }
         if(documents_.count(document_id) > 0){
-            return false;
+            throw invalid_argument("only uniq ids");;
         }
 
         const vector<string> words = SplitIntoWordsNoStop(document);
         for (const auto& word : words){
             if(!IsValidWord(word)){
-                return false;
+                throw invalid_argument("do not use special symbols");
             }
         }
         const double inv_word_count = 1.0 / words.size();
@@ -111,7 +111,6 @@ public:
         }
         documents_.emplace(document_id, DocumentData{ComputeAverageRating(ratings), status});
         idsAdd.push_back(document_id);
-        return true;
     }
 
     template <typename DocumentPredicate>
