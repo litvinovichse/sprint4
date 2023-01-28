@@ -91,7 +91,7 @@ public:
     }
 
     void AddDocument(int document_id, const string& document, DocumentStatus status,
-                                   const vector<int>& ratings) {
+                     const vector<int>& ratings) {
         if(document_id < 0){
             throw invalid_argument("only positive & 0");
         }
@@ -114,41 +114,47 @@ public:
     }
 
     template <typename DocumentPredicate>
-     optional<vector<Document>> FindTopDocuments(const string& raw_query, DocumentPredicate document_predicate) const {
+    optional<vector<Document>> FindTopDocuments(const string& raw_query, DocumentPredicate document_predicate) const {
 
-        if (!ParseQuery(raw_query).has_value()){
-            return nullopt;
-        }
-        Query query = ParseQuery(raw_query).value();
+        //        if (!ParseQuery(raw_query).has_value()){
+        //            return nullopt;
+        //        }
 
-        auto matched_documents = FindAllDocuments(query, document_predicate);
+        try {
+            Query query = ParseQuery(raw_query);
+            auto matched_documents = FindAllDocuments(query, document_predicate);
 
-        sort(matched_documents.begin(), matched_documents.end(),
-             [](const Document& lhs, const Document& rhs) {
-            if (abs(lhs.relevance - rhs.relevance) < 1e-6) {
-                return lhs.rating > rhs.rating;
-            } else {
-                return lhs.relevance > rhs.relevance;
+            sort(matched_documents.begin(), matched_documents.end(),
+                 [](const Document& lhs, const Document& rhs) {
+                if (abs(lhs.relevance - rhs.relevance) < 1e-6) {
+                    return lhs.rating > rhs.rating;
+                } else {
+                    return lhs.relevance > rhs.relevance;
+                }
+            });
+            if (matched_documents.size() > MAX_RESULT_DOCUMENT_COUNT) {
+                matched_documents.resize(MAX_RESULT_DOCUMENT_COUNT);
             }
-        });
-        if (matched_documents.size() > MAX_RESULT_DOCUMENT_COUNT) {
-            matched_documents.resize(MAX_RESULT_DOCUMENT_COUNT);
+            return matched_documents;
+        }  catch (invalid_argument& e) {
+            cout << e.what() << endl;
         }
-        return matched_documents;
+
+
     }
 
-   optional<vector<Document>> FindTopDocuments(const string& raw_query, DocumentStatus status) const{
-       auto temp {FindTopDocuments(
-                       raw_query, [status](int document_id, DocumentStatus document_status, int rating) {
-                           return document_status == status;
-                       })};
-       if (temp.has_value()){
-           auto a = temp.value();
-           return a;
-       } else {
-           return nullopt;
-       }
-   }
+    optional<vector<Document>> FindTopDocuments(const string& raw_query, DocumentStatus status) const{
+        auto temp {FindTopDocuments(
+                        raw_query, [status](int document_id, DocumentStatus document_status, int rating) {
+                return document_status == status;
+            })};
+        if (temp.has_value()){
+            auto a = temp.value();
+            return a;
+        } else {
+            return nullopt;
+        }
+    }
 
     optional<vector<Document>> FindTopDocuments(const string& raw_query) const {
         if (FindTopDocuments(raw_query, DocumentStatus::ACTUAL).has_value()){
@@ -267,15 +273,15 @@ private:
         set<string> minus_words;
     };
 
-    optional <Query> ParseQuery(const string& text) const {
+    Query ParseQuery(const string& text) const {
         Query query;
         for (const string& word : SplitIntoWords(text)) {
             if (!IsValidWord(word)){
-                return nullopt;
+                throw invalid_argument("query has not valid sybols");
             }
             const QueryWord query_word = ParseQueryWord(word);
             if (!query_word.not_error){
-                return nullopt;
+                throw invalid_argument("error in query");
             }
             if (!query_word.is_stop) {
                 if (query_word.is_minus) {
