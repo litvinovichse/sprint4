@@ -93,10 +93,7 @@ public:
         : SearchServer(
               SplitIntoWords(stop_words_text))  // Invoke delegating constructor from string container
     {
-        for (const auto& a : SplitIntoWords(stop_words_text)){
-            if (!IsValidWord(a)) throw invalid_argument("construsctor error"s);
-        }
-    }
+    } //понял, виноват, был невнимателен. Исправил
 
     void AddDocument(int document_id, const string& document, DocumentStatus status,
                      const vector<int>& ratings) {
@@ -123,9 +120,6 @@ public:
 
     template <typename DocumentPredicate>
     vector<Document> FindTopDocuments(const string& raw_query, DocumentPredicate document_predicate) const {
-        if (!ParseQuery(raw_query).has_value()){
-            throw invalid_argument("error FTD1"s); // если нет значения, вернет error FTD1, там проверка optional стоит.
-        }
         Query query = ParseQuery(raw_query).value();
         auto matched_documents = FindAllDocuments(query, document_predicate);
 
@@ -133,9 +127,9 @@ public:
              [](const Document& lhs, const Document& rhs) {
             if (abs(lhs.relevance - rhs.relevance) < 1e-6) {
                 return lhs.rating > rhs.rating;
-            } else {
-                return lhs.relevance > rhs.relevance;
             }
+                return lhs.relevance > rhs.relevance;
+
         });
         if (matched_documents.size() > MAX_RESULT_DOCUMENT_COUNT) {
             matched_documents.resize(MAX_RESULT_DOCUMENT_COUNT);
@@ -161,11 +155,6 @@ public:
     }
 
     tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query, int document_id) const{
-
-        if (!ParseQuery(raw_query)){
-            throw invalid_argument("MD error"s); // аналогично, если PQ возвращает пустое значение на основе проверок, то возвращает invalid_argument.
-        }
-
         auto query = ParseQuery(raw_query).value();
         vector<string> matched_words;
 
@@ -192,10 +181,6 @@ public:
     }
 
     int GetDocumentId(int index) const {
-        if ((index > idsAdd.size()) || (index < 0)) {
-            throw out_of_range("out of range"s); // возврат ошибки
-        }
-        else
             return idsAdd.at(index);
     }
 private:
@@ -265,11 +250,11 @@ private:
         Query query;
         for (const string& word : SplitIntoWords(text)) {
             if (!IsValidWord(word)){
-                return nullopt;
+                throw invalid_argument("invalid symbols"s);;
             }
             const QueryWord query_word = ParseQueryWord(word);
             if (!query_word.not_error){
-                return nullopt;
+                throw invalid_argument("error in query"s);;
             }
             if (!query_word.is_stop) {
                 if (query_word.is_minus) {
@@ -327,8 +312,6 @@ private:
             return c >= '\0' && c < ' ';
         });
     }
-
-
 };
 
 // ==================== для примера =========================
@@ -343,7 +326,7 @@ int main() {
     try {
         SearchServer search_server("и в на"s);
         search_server.AddDocument(1,"кот в мешке",DocumentStatus::ACTUAL,{2, 3, 4});
-        search_server.FindTopDocuments("-кот"s,DocumentStatus::ACTUAL);
+        search_server.FindTopDocuments("--кот"s,DocumentStatus::ACTUAL);
     }  catch (invalid_argument& e) {
         cout << e.what() << endl;
     }
