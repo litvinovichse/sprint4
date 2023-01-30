@@ -120,7 +120,7 @@ public:
 
     template <typename DocumentPredicate>
     vector<Document> FindTopDocuments(const string& raw_query, DocumentPredicate document_predicate) const {
-        Query query = ParseQuery(raw_query).value();
+        Query query = ParseQuery(raw_query);
         auto matched_documents = FindAllDocuments(query, document_predicate);
 
         sort(matched_documents.begin(), matched_documents.end(),
@@ -155,7 +155,7 @@ public:
     }
 
     tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query, int document_id) const{
-        auto query = ParseQuery(raw_query).value();
+        auto query = ParseQuery(raw_query);
         vector<string> matched_words;
 
         for (const string& word : query.plus_words) {
@@ -246,7 +246,7 @@ private:
         set<string> minus_words;
     };
 
-    optional <Query> ParseQuery(const string& text) const {
+    Query ParseQuery(const string& text) const {
         Query query;
         for (const string& word : SplitIntoWords(text)) {
             if (!IsValidWord(word)){
